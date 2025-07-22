@@ -4,6 +4,7 @@ import numpy as np
 import cv2
 import logging
 import json
+import time
 from dataclasses import dataclass
 from typing import Any, Optional
 from enum import Enum
@@ -81,36 +82,45 @@ class HaloPro:
         except Exception as e:
             raise RuntimeError(f"[error] Failed to connect {self.host}, {e}")
         
+
     def get_session(self):
-        """Initialize a connection and get session_id"""
-        try:
-            url = f"http://{self.host}/vcam/cmd.cgi?cmd=API_Requestsession_id"
-            payload = json.dumps({
-                "vyou": "1",
-                "id": "2"
-            })
-            headers = {
-                'Content-Type': 'application/json'
-            }
-
-            response = requests.post(url, headers=headers, data=payload, timeout=5)
-            response.raise_for_status()
-
-            # Parse direct naar HaloResponse
-            halo_resp = HaloResponse.from_json(response.json())
-
-            if halo_resp.errcode != 0:
-                raise RuntimeError(f"[error] API returned error code: {halo_resp.errcode}")
-
-            # Extract acsession_id uit de geneste data
-            self.session_id = halo_resp.data.acsession_id
-            if not self.session_id:
-                raise RuntimeError("[error] acsession_id not found in response data")
-
-            logging.info(f"[success] session_id stored")
-
-        except Exception as e:
-            raise RuntimeError(f"[error] Failed to get session ID: {e}")
+        """Initialize a connection and get session_id with retry logic"""
+        max_retries = 5
+        
+        for attempt in range(1, max_retries + 1):
+            try:
+                url = f"http://{self.host}/vcam/cmd.cgi?cmd=API_Requestsession_id"
+                payload = json.dumps({
+                    "vyou": "1",
+                    "id": "2"
+                })
+                headers = {
+                    'Content-Type': 'application/json'
+                }
+                response = requests.post(url, headers=headers, data=payload, timeout=5)
+                response.raise_for_status()
+                
+                # Parse direct naar HaloResponse
+                halo_resp = HaloResponse.from_json(response.json())
+                if halo_resp.errcode != 0:
+                    raise RuntimeError(f"[error] API returned error code: {halo_resp.errcode}")
+                
+                # Extract acsession_id uit de geneste data
+                self.session_id = halo_resp.data.acsession_id
+                if not self.session_id:
+                    raise RuntimeError("[error] acsession_id not found in response data")
+                
+                logging.info(f"[success] session_id stored on attempt {attempt}")
+                return  # Success, exit the function
+                
+            except Exception as e:
+                if attempt == max_retries:
+                    # Last attempt failed, raise the error
+                    raise RuntimeError(f"[error] Failed to get session ID after {max_retries} attempts: {e}")
+                else:
+                    # Log the retry attempt and wait before next try
+                    logging.warning(f"[retry] Attempt {attempt} failed: {e}. Retrying in 2 seconds...")
+                    time.sleep(2)
         
     def get_certificate(self):
         """Request certificate from HaloPro with session_id as cookie"""
