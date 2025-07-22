@@ -1,0 +1,15 @@
+[project]
+name = "RoadAngel"
+version = "0.1.0"
+description = "SDK for connecting to RoadAngel camera's"
+authors = [
+    { name="MrKing95", email="thomas@engber.ink" }
+]
+dependencies = [
+    "requests",
+    "opencv-python"
+]
+
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
