@@ -36,3 +36,24 @@ def connect_to_wifi(ssid, password, timeout=10):
     if result.returncode != 0:
         raise RuntimeError(f"Verbinden met {ssid} mislukt:\n{result.stderr.strip()}")
     return True
+
+def auto_connect():
+    matches = list_networks()
+    if not matches:
+        print("❌ Geen geschikte netwerken gevonden.")
+        return
+
+    ssid = matches[0]
+    print(f"[info] Verbinden met: {ssid}")
+
+    passwords = ["1234567890"]
+
+    for pw in passwords:
+        try:
+            connect_to_wifi(ssid, pw)
+            print(f"[success] Verbonden met {ssid}")
+            return  # Stop als verbinden lukt
+        except Exception as e:
+            print(f"[error] Verbinden met {ssid} mislukt: {e}")
+
+    print(f"[error] Alle wachtwoorden geprobeerd, verbinding met {ssid} is niet gelukt.")
