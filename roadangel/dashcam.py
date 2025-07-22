@@ -2,6 +2,7 @@ import requests
 import socket
 import numpy as np
 import cv2
+import logging
 import json
 from dataclasses import dataclass
 from typing import Any, Optional
@@ -75,7 +76,7 @@ class HaloPro:
         """Test remote connection"""
         try:
             with socket.create_connection((self.host, 80), timeout=timeout):
-                print(f"[success] Verbinding met {self.host}:80 succesvol.")
+                logging.info(f"[success] Verbinding met {self.host}:80 succesvol.")
                 return True
         except Exception as e:
             raise RuntimeError(f"[error] Failed to connect {self.host}, {e}")
@@ -106,7 +107,7 @@ class HaloPro:
             if not self.session_id:
                 raise RuntimeError("[error] acsession_id not found in response data")
 
-            print(f"[success] session_id stored")
+            logging.info(f"[success] session_id stored")
 
         except Exception as e:
             raise RuntimeError(f"[error] Failed to get session ID: {e}")
@@ -140,7 +141,7 @@ class HaloPro:
             if halo_resp.errcode != 0:
                 raise RuntimeError(f"API returned error code: {halo_resp.errcode}")
 
-            print(f"[success] Certificaat stored")
+            logging.info(f"[success] Certificaat stored")
             return halo_resp.data
 
         except Exception as e:
@@ -173,7 +174,7 @@ class HaloPro:
             if halo_resp.errcode != 0:
                 raise RuntimeError(f"API returned error code: {halo_resp.errcode}")
 
-            print(f"[info] Mailboxdata retreived {halo_resp.data}")
+            logging.info(f"[info] Mailboxdata retreived {halo_resp.data}")
             return halo_resp.data
 
         except Exception as e:
@@ -207,7 +208,7 @@ class HaloPro:
             if halo_resp.errcode != 0:
                 raise RuntimeError(f"API returned error code: {halo_resp.errcode}")
 
-            print(f"[info] Livestream switched {switch}. Stream available at: {self.stream_url}")
+            logging.info(f"[info] Livestream switched {switch}. Stream available at: {self.stream_url}")
             return True
 
         except Exception as e:
@@ -223,7 +224,7 @@ class HaloPro:
             while True:
                 ret, frame = cap.read()
                 if not ret:
-                    print("⚠️ Frame niet ontvangen, probeer opnieuw...")
+                    logging.info("⚠️ Frame niet ontvangen, probeer opnieuw...")
                     break
 
                 cv2.imshow('Livestream', frame)
