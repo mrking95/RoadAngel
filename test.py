@@ -1,4 +1,5 @@
 from roadangel import wifi, dashcam
+from roadangel.models import SwitchMode
 
 
 
@@ -12,3 +13,4 @@ dashcam.get_certificate()
 dashcam.get_mailboxdata()
 dashcam.set_playbackliveswitch()
 dashcam.visualize_stream()
+dashcam.set_playbackliveswitch(switch=SwitchMode.TOGGLE)
