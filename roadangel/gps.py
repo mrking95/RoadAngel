@@ -3,13 +3,14 @@ import re
 import logging
 from datetime import datetime, timedelta
 from typing import Optional, Dict
-
-from dashcam import HaloPro
+from .dashcam import HaloPro
 
 class GPSFetcher:
     def __init__(self, host: str):
         self.host = host
         self.dashcam = HaloPro(host)
+        self.dashcam.get_session()
+        self.dashcam.get_certificate()
         self._last_known_location = None  # opslaan laatste locatie dict
 
     def _parse_timestamp(self, ts_str: str) -> Optional[str]:

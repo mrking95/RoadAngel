@@ -209,7 +209,8 @@ class HaloResponse:
 
                     # GPS File Entry
                     elif "num" in parsed and "file" in parsed:
-                        self._data = GpsFileReq(**parsed)
+                        files = [FileEntry(**f) for f in parsed["file"]]
+                        self._data = GpsFileReq(num=parsed["num"], file=files)
                     
                     # Fallback for unknown structures
                     else:
