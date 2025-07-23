@@ -16,11 +16,9 @@ dashcam.get_certificate()
 dashcam.get_mailboxdata()
 dashcam.syncdate()
 
-gps = GPSFetcher()
+gps = GPSFetcher(dashcam.host)
 
-now = datetime.now()
-timestamp_str = now.strftime("%Y%m%d%H%M%S")
-gps.fetch_latest_gps(dashcam.host, timestamp_str)
+print(gps.fetch_latest_gps())
 
 # #dashcam.generalsave(mic_switch="off", speaker_turn=100)
 # dashcam.superdownload()

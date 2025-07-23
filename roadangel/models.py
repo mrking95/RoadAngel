@@ -124,6 +124,20 @@ class TripStats:
     avg_speed: float
 
 @dataclass
+class FileEntry:
+    index: str
+    type: str
+    starttime: str
+    endtime: str
+    name: str
+    parentfile: str
+
+@dataclass
+class GpsFileReq:
+    num: int
+    file: List[FileEntry]
+
+@dataclass
 class HaloResponse:
     def __init__(self, errcode: int, data_raw):
         self.errcode = errcode
@@ -192,6 +206,10 @@ class HaloResponse:
                     # Trip statistics
                     elif "total_time" in parsed and "total_mileage" in parsed:
                         self._data = TripStats(**parsed)
+
+                    # GPS File Entry
+                    elif "num" in parsed and "file" in parsed:
+                        self._data = GpsFileReq(**parsed)
                     
                     # Fallback for unknown structures
                     else:

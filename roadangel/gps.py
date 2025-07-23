@@ -1,12 +1,15 @@
 import requests
 import re
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Optional, Dict
+
+from dashcam import HaloPro
 
 class GPSFetcher:
     def __init__(self, host: str):
         self.host = host
+        self.dashcam = HaloPro(host)
         self._last_known_location = None  # opslaan laatste locatie dict
 
     def _parse_timestamp(self, ts_str: str) -> Optional[str]:
@@ -60,8 +63,22 @@ class GPSFetcher:
         host: "193.168.0.1"
         timestamps: at time of asking (or before that?)
         """
-        timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
-        url = f"http://{self.host}/{timestamp}_0060.gpx"
+        # We kunnen niet zomaar GPS ophalen, we moeten eerst een request doen naar API_GpsFileListReq, en daar de laatste uithalen, die mogen we downloaden.
+        # 20250723145230_0060.gpx
+        
+        filereq = self.dashcam.gpsfilelistreq()
+
+        if not filereq:
+            logging.debug(f'No gps data available')
+            return
+        
+        item = next((f for f in reversed(filereq.file) if f.type == "49"), None)
+        
+        if not item:
+            logging.debug(f'No gps data available')
+            return
+
+        url = f"http://{self.host}/{item.name}"
         lines = []
         try:
             r = requests.get(url, timeout=5)

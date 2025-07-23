@@ -7,7 +7,7 @@ import json
 from datetime import datetime, timezone, timedelta
 
 import time
-from .models import DeviceInfo, HaloResponse, SessionData, SwitchMode
+from .models import DeviceInfo, GpsFileReq, HaloResponse, SessionData, SwitchMode
 
 class HaloPro:
     def __init__(self, host, username="admin", password="admin"):
@@ -248,6 +248,35 @@ class HaloPro:
 
             logging.info(f"[info] superdownload switched {switch}")
             return True
+
+        except Exception as e:
+            raise RuntimeError(f"[error] Failed to set superdownload: {e}")
+        
+    def gpsfilelistreq(self) -> GpsFileReq | None:
+        """http://193.168.0.1/vcam/cmd.cgi?cmd=API_GpsFileListReq"""
+        """Get GPS file list"""
+        try:
+            url = f"http://{self.host}/vcam/cmd.cgi?cmd=API_GpsFileListReq"
+
+            payload = json.dumps({
+                "vyou": "1",
+                "id": "2"
+            })
+
+            response = requests.post(url, headers=self.headers, cookies=self.cookies, data=payload, timeout=5)
+            response.raise_for_status()
+
+            halo_resp = HaloResponse.from_json(response.json())
+
+            if halo_resp.errcode != 0:
+                raise RuntimeError(f"API returned error code: {halo_resp.errcode}")
+
+            logging.info(f"[info] GPS File req downloaded")
+            if isinstance(halo_resp.data, GpsFileReq):
+                return halo_resp.data
+            
+            return None
+
 
         except Exception as e:
             raise RuntimeError(f"[error] Failed to set superdownload: {e}")
