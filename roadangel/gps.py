@@ -60,12 +60,13 @@ class GPSFetcher:
         """
 
         url = f"http://{host}/{timestamp}_0060.gpx"
+        lines = []
         try:
             r = requests.get(url, timeout=5)
             r.raise_for_status()
             lines = r.text.splitlines()
         except Exception:
-            logging.error(f'Failed getting .gpx for {url}')
+            logging.warning(f'Failed getting .gpx for {url}')
 
         gps_data = None
         # reverse zoeken, laatste gps regel
