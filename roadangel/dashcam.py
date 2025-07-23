@@ -5,64 +5,7 @@ import cv2
 import logging
 import json
 import time
-from dataclasses import dataclass
-from typing import Any, Optional
-from enum import Enum
-
-class SwitchMode(str, Enum):
-    LIVE = "live"
-    TOGGLE = "toggle"
-
-@dataclass
-class SessionData:
-    acsession_id: str
-
-@dataclass
-class MailboxMessage:
-    msgid: str
-    data: dict
-
-    @staticmethod
-    def from_dict(d):
-        return MailboxMessage(
-            msgid=d.get("msgid"),
-            data=json.loads(d.get("data")) if isinstance(d.get("data"), str) else d.get("data")
-        )
-
-@dataclass
-class HaloResponse:
-    def __init__(self, errcode: int, data_raw):
-        self.errcode = errcode
-        self._data_raw = data_raw
-        self._data = None
-
-    @staticmethod
-    def from_json(resp_json):
-        errcode = resp_json.get("errcode")
-        data_raw = resp_json.get("data")
-        return HaloResponse(errcode, data_raw)
-
-    @property
-    def data(self):
-        if self._data is None:
-            try:
-                # Probeer eerst JSON te parsen
-                parsed = json.loads(self._data_raw) if isinstance(self._data_raw, str) else self._data_raw
-            except Exception:
-                parsed = self._data_raw
-            
-            # Automatische dispatch op basis van keys:
-            if isinstance(parsed, dict):
-                if "acsession_id" in parsed:
-                    self._data = SessionData(**parsed)
-                elif "msg" in parsed:
-                    self._data = [MailboxMessage.from_dict(m) for m in parsed["msg"]]
-                else:
-                    self._data = parsed  # fallback
-            else:
-                self._data = parsed
-        return self._data
-    
+from .models import HaloResponse, SessionData, SwitchMode
 
 class HaloPro:
     def __init__(self, host, username="admin", password="admin"):
@@ -72,6 +15,8 @@ class HaloPro:
         self.session_id = None
         self.uid = "8f852e60dccd41299e873c62e3ba1ae38750231a"
         self.stream_url = f'tcp://{self.host}:6200/'
+        self.headers = None
+        self.coockie = None
 
     def test(self, timeout=5):
         """Test remote connection"""
@@ -85,42 +30,45 @@ class HaloPro:
 
     def get_session(self):
         """Initialize a connection and get session_id with retry logic"""
-        max_retries = 5
-        
-        for attempt in range(1, max_retries + 1):
-            try:
-                url = f"http://{self.host}/vcam/cmd.cgi?cmd=API_Requestsession_id"
-                payload = json.dumps({
-                    "vyou": "1",
-                    "id": "2"
-                })
-                headers = {
-                    'Content-Type': 'application/json'
+        try:
+            url = f"http://{self.host}/vcam/cmd.cgi?cmd=API_RequestSessionID"
+            headers = {
+                'Content-Type': 'application/json'
+            }
+            response = requests.post(url, headers=headers, data={
+                "vyou": "1",
+                "id": "2"
+            }, timeout=5)
+            response.raise_for_status()
+            
+            # Parse direct naar HaloResponse
+            halo_resp = HaloResponse.from_json(response.json())
+            if halo_resp.errcode != 0:
+                raise RuntimeError(f"[error] API returned error code: {response.json()}")
+            
+            # Extract acsession_id uit de geneste data
+            if isinstance(halo_resp.data, SessionData):
+                self.session_id = halo_resp.data.acSessionId
+
+                self.headers = {
+                    'Content-Type': 'application/json',
+                    'SessionID': self.session_id
                 }
-                response = requests.post(url, headers=headers, data=payload, timeout=5)
-                response.raise_for_status()
-                
-                # Parse direct naar HaloResponse
-                halo_resp = HaloResponse.from_json(response.json())
-                if halo_resp.errcode != 0:
-                    raise RuntimeError(f"[error] API returned error code: {halo_resp.errcode}")
-                
-                # Extract acsession_id uit de geneste data
-                self.session_id = halo_resp.data.acsession_id
+
+                self.cookies = {
+                    'Cookie': f'JSESSIONID={self.session_id}'
+                }
+
                 if not self.session_id:
                     raise RuntimeError("[error] acsession_id not found in response data")
                 
-                logging.info(f"[success] session_id stored on attempt {attempt}")
-                return  # Success, exit the function
-                
-            except Exception as e:
-                if attempt == max_retries:
-                    # Last attempt failed, raise the error
-                    raise RuntimeError(f"[error] Failed to get session ID after {max_retries} attempts: {e}")
-                else:
-                    # Log the retry attempt and wait before next try
-                    logging.warning(f"[retry] Attempt {attempt} failed: {e}. Retrying in 2 seconds...")
-                    time.sleep(2)
+            else:
+                raise RuntimeError(f"[error] API returned invalid object: {response.json()}")
+            
+            return  # Success, exit the function
+            
+        except Exception as e:
+            raise RuntimeError(f"[error] Failed to get session ID: {e}")
         
     def get_certificate(self):
         """Request certificate from HaloPro with session_id as cookie"""
@@ -129,21 +77,12 @@ class HaloPro:
 
             payload = json.dumps({
                 "password": self.password,
-                "uid": self.session_id,
+                "uid": "8f852e60dccd41299e873c62e3ba1ae38750231a",
                 "level": 0,
                 "user": self.username
             })
 
-            headers = {
-                'Content-Type': 'application/json',
-                'session_id': self.session_id
-            }
-
-            cookies = {
-                'Jsession_id': self.session_id
-            }
-
-            response = requests.post(url, headers=headers, cookies=cookies, data=payload, timeout=5)
+            response = requests.post(url, headers=self.headers, cookies=self.cookies, data=payload, timeout=5)
             response.raise_for_status()
 
             halo_resp = HaloResponse.from_json(response.json())
@@ -167,16 +106,7 @@ class HaloPro:
                 "id": "2"
             })
 
-            headers = {
-                'Content-Type': 'application/json',
-                'session_id': self.session_id
-            }
-
-            cookies = {
-                'Jsession_id': self.session_id
-            }
-
-            response = requests.post(url, headers=headers, cookies=cookies, data=payload, timeout=5)
+            response = requests.post(url, headers=self.headers, cookies=self.cookies, data=payload, timeout=5)
             response.raise_for_status()
 
             halo_resp = HaloResponse.from_json(response.json())
@@ -201,16 +131,7 @@ class HaloPro:
                 "playtime": "0"
             })
 
-            headers = {
-                'Content-Type': 'application/json',
-                'session_id': self.session_id
-            }
-
-            cookies = {
-                'Jsession_id': self.session_id
-            }
-
-            response = requests.post(url, headers=headers, cookies=cookies, data=payload, timeout=5)
+            response = requests.post(url, headers=self.headers, cookies=self.cookies, data=payload, timeout=5)
             response.raise_for_status()
 
             halo_resp = HaloResponse.from_json(response.json())

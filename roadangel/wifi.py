@@ -1,5 +1,7 @@
 import subprocess
 import re
+import logging
+import time
 
 WIFI_REGEX = re.compile(r"^WiFi_\d{4}HaloPro$")
 
@@ -37,23 +39,26 @@ def connect_to_wifi(ssid, password, timeout=10):
         raise RuntimeError(f"Verbinden met {ssid} mislukt:\n{result.stderr.strip()}")
     return True
 
+
 def auto_connect():
-    matches = list_networks()
-    if not matches:
-        print("❌ Geen geschikte netwerken gevonden.")
-        return
-
+    # Keep scanning until we find matches
+    while True:
+        matches = list_networks()
+        if matches:
+            break  # Found networks, exit the scanning loop
+        logging.warning("[warning] Geen geschikte netwerken gevonden. Opnieuw scannen in 5 seconden...")
+        time.sleep(5)
+    
     ssid = matches[0]
-    print(f"[info] Verbinden met: {ssid}")
-
-    passwords = ["1234567890"]
-
+    logging.info(f"[info] Verbinden met: {ssid}")
+    passwords = ["HaloPro1234", "1234567890"]
+    
     for pw in passwords:
         try:
             connect_to_wifi(ssid, pw)
-            print(f"[success] Verbonden met {ssid}")
+            logging.info(f"[success] Verbonden met {ssid}")
             return  # Stop als verbinden lukt
         except Exception as e:
-            print(f"[error] Verbinden met {ssid} mislukt: {e}")
-
-    print(f"[error] Alle wachtwoorden geprobeerd, verbinding met {ssid} is niet gelukt.")
+            logging.error(f"[error] Verbinden met {ssid} mislukt: {e}")
+    
+    logging.info(f"[error] Alle wachtwoorden geprobeerd, verbinding met {ssid}")
