@@ -172,7 +172,7 @@ class HaloPro:
             raise RuntimeError(f"[error] Failed to set applivestate: {e}")
         
 
-    def snycdate(self):
+    def syncdate(self):
         """Sync the date & time"""
         try:
             url = f"http://{self.host}/vcam/cmd.cgi?cmd=API_SyncDate"
