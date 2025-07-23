@@ -1,3 +1,4 @@
+import time
 from roadangel import wifi, dashcam
 from roadangel.models import SwitchMode
 
@@ -11,5 +12,15 @@ dashcam.test()
 dashcam.get_session()
 dashcam.get_certificate()
 dashcam.get_mailboxdata()
-dashcam.set_playbackliveswitch()
+dashcam.snycdate()
+#dashcam.generalsave(mic_switch="off", speaker_turn=100)
+dashcam.superdownload()
+dashcam.set_applivestate(switch=SwitchMode.ON)
+dashcam.set_playbackliveswitch(switch=SwitchMode.LIVE)
+#dashcam.set_playbackliveswitch(switch=SwitchMode.LIVE)
+#dashcam.set_playbackliveswitch(switch=SwitchMode.LIVE)
+
+dashcam.visualize_stream()
+
+dashcam.set_playbackliveswitch(switch=SwitchMode.TOGGLE)
 dashcam.set_applivestate(switch=SwitchMode.OFF)

@@ -4,8 +4,10 @@ import numpy as np
 import cv2
 import logging
 import json
+from datetime import datetime, timezone, timedelta
+
 import time
-from .models import HaloResponse, SessionData, SwitchMode
+from .models import DeviceInfo, HaloResponse, SessionData, SwitchMode
 
 class HaloPro:
     def __init__(self, host, username="admin", password="admin"):
@@ -122,7 +124,7 @@ class HaloPro:
 
 
     def set_playbackliveswitch(self, switch: SwitchMode = SwitchMode.LIVE):
-        """Check if there is any data ready for us"""
+        """Change playback live mode"""
         try:
             url = f"http://{self.host}/vcam/cmd.cgi?cmd=APP_PlaybackLiveSwitch"
 
@@ -146,7 +148,7 @@ class HaloPro:
             raise RuntimeError(f"[error] Failed to set livestream: {e}")
         
     def set_applivestate(self, switch: SwitchMode = SwitchMode.ON):
-        """Check if there is any data ready for us"""
+        """Change the app's state"""
         try:
             url = f"http://{self.host}/vcam/cmd.cgi?cmd=API_SetAppLiveState"
 
@@ -169,6 +171,139 @@ class HaloPro:
         except Exception as e:
             raise RuntimeError(f"[error] Failed to set applivestate: {e}")
         
+
+    def snycdate(self):
+        """Sync the date & time"""
+        try:
+            url = f"http://{self.host}/vcam/cmd.cgi?cmd=API_SyncDate"
+
+            tz = timezone(timedelta(seconds=7200))  # 7200 sec = +02:00
+
+            payload = json.dumps({
+                "imei": "",
+                "format": "dd/MM/yyyy HH:mm:ss",
+                "lang": "en_US",
+                "time_zone": 7200,
+                "date": datetime.now(tz).strftime("%Y%m%d%H%M%S")
+            })
+
+            response = requests.post(url, headers=self.headers, cookies=self.cookies, data=payload, timeout=5)
+            response.raise_for_status()
+
+            halo_resp = HaloResponse.from_json(response.json())
+
+            if halo_resp.errcode != 0:
+                raise RuntimeError(f"API returned error code: {halo_resp.errcode}")
+
+            logging.info(f"[info] Datetime synced")
+            return True
+
+        except Exception as e:
+            raise RuntimeError(f"[error] Failed to set applivestate: {e}")
+
+
+    def get_baseinfo(self) -> DeviceInfo:
+        """Get DeviceInfo"""
+        try:
+            url = f"http://{self.host}/vcam/cmd.cgi?cmd=API_GetBaseInfo"
+
+            payload = json.dumps({
+                "vyou": "1",
+                "id": "2"
+            })
+
+            response = requests.post(url, headers=self.headers, cookies=self.cookies, data=payload, timeout=5)
+            response.raise_for_status()
+
+            halo_resp = HaloResponse.from_json(response.json())
+
+            if halo_resp.errcode != 0:
+                raise RuntimeError(f"API returned error code: {halo_resp.errcode}")
+
+            if isinstance(halo_resp.data, DeviceInfo):
+                return halo_resp.data
+            
+            raise RuntimeError(f"Unable to get device info")
+
+        except Exception as e:
+            raise RuntimeError(f"[error] Failed to set livestream: {e}")
+        
+    
+    def superdownload(self, switch: SwitchMode = SwitchMode.OFF):
+        """Set SuperDownload"""
+        try:
+            url = f"http://{self.host}/vcam/cmd.cgi?cmd=API_SuperDownload"
+
+            payload = json.dumps({
+                "switch": switch.value,
+            })
+
+            response = requests.post(url, headers=self.headers, cookies=self.cookies, data=payload, timeout=5)
+            response.raise_for_status()
+
+            halo_resp = HaloResponse.from_json(response.json())
+
+            if halo_resp.errcode != 0:
+                raise RuntimeError(f"API returned error code: {halo_resp.errcode}")
+
+            logging.info(f"[info] superdownload switched {switch}")
+            return True
+
+        except Exception as e:
+            raise RuntimeError(f"[error] Failed to set superdownload: {e}")
+        
+
+    def generalsave(self, 
+                    event_before_time=0, 
+                    speaker_turn=50, 
+                    parking_power_mgr=0, 
+                    mic_switch="off",
+                    osd_switch="off",
+                    osd_speedswitch="off",
+                    start_sound_switch="off",
+                    scam_vertical_mirror="off",
+                    scam_horizontal_mirror="off",
+                    parking_status="hibernate",
+                    power_guard_value="mid"
+                ):
+        """Allow changing of the config"""
+        try:
+            url = f"http://{self.host}/vcam/cmd.cgi?cmd=API_GeneralSave"
+
+            payload = json.dumps({
+                "int_params": [
+                    {"key": "event_before_time", "value": event_before_time},         # 0-30
+                    {"key": "event_after_time", "value": event_before_time},          # 0-30
+                    {"key": "speaker_turn", "value": speaker_turn},              # 0-100
+                    {"key": "parking_power_mgr", "value": parking_power_mgr},          # 0,1,2,3,4
+                ],
+                "string_params": [
+                    {"key": "mic_switch", "value": mic_switch},
+                    {"key": "osd_switch", "value": osd_switch},
+                    {"key": "osd_speedswitch", "value": osd_speedswitch},
+                    {"key": "start_sound_switch", "value": start_sound_switch},
+                    {"key": "scam_vertical_mirror", "value": scam_vertical_mirror},
+                    {"key": "scam_horizontal_mirror", "value": scam_horizontal_mirror},
+                    {"key": "parking_status", "value": parking_status},   # timelapse | hibernate | normal
+                    {"key": "power_guard_value", "value": power_guard_value},      # high | mid | low
+                ]
+            })
+
+            response = requests.post(url, headers=self.headers, cookies=self.cookies, data=payload, timeout=5)
+            response.raise_for_status()
+
+            print(response.json())
+
+            halo_resp = HaloResponse.from_json(response.json())
+
+            if halo_resp.errcode != 0:
+                raise RuntimeError(f"API returned error code: {halo_resp.errcode}")
+
+            logging.info(f"[info] Config changed")
+            return True
+
+        except Exception as e:
+            raise RuntimeError(f"[error] Failed to set config: {e}")
 
     def visualize_stream(self):
         """Opens CV2 stream to the dashcam"""
