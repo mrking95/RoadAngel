@@ -252,7 +252,7 @@ class HaloPro:
         except Exception as e:
             raise RuntimeError(f"[error] Failed to set superdownload: {e}")
         
-    def gpsfilelistreq(self) -> GpsFileReq | None:
+    def gpsfilelistreq(self) -> GpsFileReq:
         """http://193.168.0.1/vcam/cmd.cgi?cmd=API_GpsFileListReq"""
         """Get GPS file list"""
         try:
@@ -275,8 +275,7 @@ class HaloPro:
             if isinstance(halo_resp.data, GpsFileReq):
                 return halo_resp.data
             
-            return None
-
+            raise RuntimeError(f'Response not of correct type')
 
         except Exception as e:
             raise RuntimeError(f"[error] Failed to set superdownload: {e}")
