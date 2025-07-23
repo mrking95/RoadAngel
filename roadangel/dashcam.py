@@ -124,7 +124,7 @@ class HaloPro:
     def set_playbackliveswitch(self, switch: SwitchMode = SwitchMode.LIVE):
         """Check if there is any data ready for us"""
         try:
-            url = f"http://{self.host}/vcam/cmd.cgi?cmd=API_GetMailboxData"
+            url = f"http://{self.host}/vcam/cmd.cgi?cmd=APP_PlaybackLiveSwitch"
 
             payload = json.dumps({
                 "switch": switch.value,
@@ -144,6 +144,30 @@ class HaloPro:
 
         except Exception as e:
             raise RuntimeError(f"[error] Failed to set livestream: {e}")
+        
+    def set_applivestate(self, switch: SwitchMode = SwitchMode.ON):
+        """Check if there is any data ready for us"""
+        try:
+            url = f"http://{self.host}/vcam/cmd.cgi?cmd=API_SetAppLiveState"
+
+            payload = json.dumps({
+                "switch": switch.value,
+                "playtime": "0"
+            })
+
+            response = requests.post(url, headers=self.headers, cookies=self.cookies, data=payload, timeout=5)
+            response.raise_for_status()
+
+            halo_resp = HaloResponse.from_json(response.json())
+
+            if halo_resp.errcode != 0:
+                raise RuntimeError(f"API returned error code: {halo_resp.errcode}")
+
+            logging.info(f"[info] livestate switched {switch}. Stream available at: {self.stream_url}")
+            return True
+
+        except Exception as e:
+            raise RuntimeError(f"[error] Failed to set applivestate: {e}")
         
 
     def visualize_stream(self):

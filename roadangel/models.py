@@ -6,6 +6,8 @@ import json
 class SwitchMode(str, Enum):
     LIVE = "live"
     TOGGLE = "toggle"
+    ON = "on"
+    OFF = "off"
 
 @dataclass
 class SessionData:
