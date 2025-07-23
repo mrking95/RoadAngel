@@ -1,10 +1,12 @@
 import requests
 import re
 import logging
+from datetime import datetime
 from typing import Optional, Dict
 
 class GPSFetcher:
-    def __init__(self):
+    def __init__(self, host: str):
+        self.host = host
         self._last_known_location = None  # opslaan laatste locatie dict
 
     def _parse_timestamp(self, ts_str: str) -> Optional[str]:
@@ -51,15 +53,15 @@ class GPSFetcher:
             "timestamp": timestamp,
             "latitude": latitude,
             "longitude": longitude,
-        }
 
-    def fetch_latest_gps(self, host: str, timestamp: str) -> Optional[Dict]:
+        }
+    def fetch_latest_gps(self) -> Optional[Dict]:
         """
         host: "193.168.0.1"
         timestamps: at time of asking (or before that?)
         """
-
-        url = f"http://{host}/{timestamp}_0060.gpx"
+        timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+        url = f"http://{self.host}/{timestamp}_0060.gpx"
         lines = []
         try:
             r = requests.get(url, timeout=5)
